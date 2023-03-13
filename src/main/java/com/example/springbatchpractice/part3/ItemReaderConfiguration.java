@@ -1,4 +1,4 @@
-package com.example.springbatchpractice.par3;
+package com.example.springbatchpractice.part3;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -8,6 +8,8 @@ import org.springframework.batch.core.configuration.annotation.JobBuilderFactory
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.item.database.JpaCursorItemReader;
+import org.springframework.batch.item.database.builder.JpaCursorItemReaderBuilder;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
 import org.springframework.batch.item.file.mapping.DefaultLineMapper;
@@ -16,6 +18,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 
+import javax.persistence.EntityManagerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,6 +29,7 @@ import java.util.stream.Collectors;
 public class ItemReaderConfiguration {
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
+    private final EntityManagerFactory entityManagerFactory;
 
     @Bean
     public Job itemReaderJob() throws Exception {
@@ -33,6 +37,7 @@ public class ItemReaderConfiguration {
                 .incrementer(new RunIdIncrementer())
                 .start(this.customItemReaderStep())
                 .next(this.csvFileStep())
+                .next(this.jpaStep())
                 .build();
     }
 
@@ -52,6 +57,25 @@ public class ItemReaderConfiguration {
                 .reader(this.csvFileItemReader())
                 .writer(itemWriter())
                 .build();
+    }
+
+    @Bean
+    public Step jpaStep() throws Exception {
+        return this.stepBuilderFactory.get("jpaStep")
+                .<Person, Person>chunk(10)
+                .reader(this.jpaCursorItemReader())
+                .writer(this.itemWriter())
+                .build();
+    }
+
+    private JpaCursorItemReader<Person> jpaCursorItemReader() throws Exception {
+        JpaCursorItemReader<Person> itemReader = new JpaCursorItemReaderBuilder<Person>().name("jpaCursorItemReader")
+                .entityManagerFactory(entityManagerFactory)
+                .queryString("select p from Person p")
+                .build();
+        itemReader.afterPropertiesSet();
+
+        return itemReader;
     }
 
     private FlatFileItemReader<Person> csvFileItemReader() throws Exception {

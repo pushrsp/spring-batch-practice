@@ -1,4 +1,4 @@
-package com.example.springbatchpractice.par3;
+package com.example.springbatchpractice.part3;
 
 
 import org.springframework.batch.item.ItemReader;
